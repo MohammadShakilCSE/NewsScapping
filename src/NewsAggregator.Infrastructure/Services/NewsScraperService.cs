@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace NewsAggregator.Infrastructure.Services
 {
@@ -13,7 +14,7 @@ namespace NewsAggregator.Infrastructure.Services
     {
         public async Task<List<NewsArticle>> ScrapeTopNewsAsync()
         {
-           List<NewsArticle> newsArticles = new List<NewsArticle>();
+            List<NewsArticle> newsArticles = new List<NewsArticle>();
 
             string url = "https://www.prothomalo.com/";
 
@@ -23,31 +24,96 @@ namespace NewsAggregator.Infrastructure.Services
             HtmlDocument doc = new HtmlDocument();
             doc.LoadHtml(html); ;
 
-            var newsNodes = doc.DocumentNode.SelectNodes("//div[contains(@class, 'news_with_item')]");
-            var allNewsNode = doc.DocumentNode.SelectNodes("//div");
-            //foreach (var newsNode in newsNodes)
-            //{
-            //    var titleNode = newsNode.SelectSingleNode(".//h3[contains(@class, 'headline-title')]//span[contains(@class, 'sub-title')]");
-            //    var linkNode = newsNode.SelectSingleNode(".//a[@href]");
+            // var newsNodes = doc.DocumentNode.SelectNodes("//div[contains(@class, 'news_with_item')]");
+            var articleNode = doc.DocumentNode.SelectSingleNode("//div[contains(@class, 'mgbH5')]");
 
-            //    string title = titleNode?.InnerText?.Trim();
-            //    string link = linkNode?.GetAttributeValue("href", string.Empty);
-
-            //    if (!string.IsNullOrEmpty(title) && !string.IsNullOrEmpty(link))
-            //    {
-            //        Make full URL if it's relative
-            //        if (link.StartsWith("/"))
-            //            link = "https://www.prothomalo.com" + link;
-
-            //        newsArticles.Add(new NewsArticle() { Content = title, Url = link, PublishedAt = DateTime.Now, Title = title, ImagePath = string.Empty });
-            //        newsArticles.Add(new NewsArticle() { Content = title, Url = link, PublishedAt = DateTime.Now, Title = title, ImagePath = string.Empty });
-            //    }
-            //}
-
-            foreach (var newsNode in allNewsNode)
+            if (articleNode != null)
             {
+                var titleSpan = articleNode.SelectSingleNode(".//h1[contains(@class, 'headline-title')]//span");
+                var linkNode = articleNode.SelectSingleNode(".//h1//a[@class='title-link']");
+                var excerptNode = articleNode.SelectSingleNode(".//a[contains(@class, 'excerpt')]");
+                var timeNode = articleNode.SelectSingleNode(".//time[contains(@class, 'published-time')]");
+
+                string title = titleSpan?.InnerText.Trim() ?? "(no title)";
+                string link = linkNode?.GetAttributeValue("href", "") ?? "(no link)";
+                string excerpt = excerptNode?.InnerText.Trim() ?? "(no excerpt)";
+                string time = timeNode?.InnerText.Trim() ?? "(no time)";
+
+                newsArticles.Add( new NewsArticle
+                {
+                    Title = title,
+                    Url = link,
+                    Content = excerpt,
+                    PublishedAt = time,
+                    ImagePath = "" 
+                });
+
+
+            }
+
+           var news_item = doc.DocumentNode.SelectNodes("//div[contains(@class, 'news_item')]");
+          
+
+            if(news_item != null)
+            {
+               
+                foreach (var item in news_item)
+                {
+                    var titleSpan = item.SelectSingleNode(".//h3[contains(@class, 'headline-title')]//span");
+                    string title = titleSpan?.InnerText.Trim() ?? "(no title)";
+                    if (newsArticles.Any(n => n.Title == title))
+                    {
+                        continue; // Skip if the title already exists
+                    }
+               
+                    var linkNode = item.SelectSingleNode(".//h3//a[@class='title-link']");
+                    string link = linkNode?.GetAttributeValue("href", "") ?? "(no link)";
+
+                    var excerptNode = item.SelectSingleNode(".//a[contains(@class, 'excerpt')]");
+                    string excerpt = excerptNode?.InnerText.Trim() ?? "(no excerpt)";
+
               
-                newsArticles.Add(new NewsArticle() { Content = newsNode.InnerText });
+                    var timeNode = item.SelectSingleNode(".//time[contains(@class, 'published-time')]");
+                    string time = timeNode?.InnerText.Trim() ?? "(no time)";
+
+                    newsArticles.Add(new NewsArticle
+                    {
+                        Title = title,
+                        Url = link,
+                        Content = excerpt,
+                        PublishedAt = time,
+                        ImagePath = ""
+                    });
+                }
+            }
+
+            var newsWithNoitems = doc.DocumentNode.SelectNodes("//div[contains(@class, 'news_with_no_image')]");
+            foreach (var item in newsWithNoitems)
+            {
+                var titleSpan = item.SelectSingleNode(".//h3[contains(@class, 'headline-title')]//span");
+                string title = titleSpan?.InnerText.Trim() ?? "(no title)";
+                if (newsArticles.Any(n => n.Title == title))
+                {
+                    continue; // Skip if the title already exists
+                }
+            
+                var linkNode = item.SelectSingleNode(".//h3//a[@class='title-link']");
+                string link = linkNode?.GetAttributeValue("href", "") ?? "(no link)";
+
+                var excerptNode = item.SelectSingleNode(".//a[contains(@class, 'excerpt')]");
+                string excerpt = excerptNode?.InnerText.Trim() ?? "(no excerpt)";
+
+                var timeNode = item.SelectSingleNode(".//time[contains(@class, 'published-time')]");
+                string time = timeNode?.InnerText.Trim() ?? "(no time)";
+
+                newsArticles.Add(new NewsArticle
+                {
+                    Title = title,
+                    Url = link,
+                    Content = excerpt,
+                    PublishedAt = time,
+                    ImagePath = ""
+                });
             }
 
             return await Task.FromResult(newsArticles);
