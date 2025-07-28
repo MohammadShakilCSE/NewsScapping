@@ -53,12 +53,14 @@ namespace NewsAggregator.Infrastructure.Services
 
             }
 
+            // get all news items
             var news_item = doc.DocumentNode.SelectNodes("//div[contains(@class, 'news_item')]");
             if (news_item != null)
             {
                 newsArticles.AddRange(await ScrapeNewsByCategoryAsync(news_item));
             }
 
+            //get all new items with no image
             var newsWithNoitems = doc.DocumentNode.SelectNodes("//div[contains(@class, 'news_with_no_image')]");
             if(newsWithNoitems != null)
             {
